@@ -1,0 +1,6 @@
+{
+  "name": "ERP POS Bar y Restaurante",
+  "description": "Sistema ERP POS completo para gestión de ventas, mesas, pedidos, caja, inventario, compras, clientes y reportes de bar y restaurante.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
