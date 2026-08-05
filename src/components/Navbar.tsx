@@ -1,7 +1,6 @@
 import React from 'react';
 import { usePOS } from '../context/POSContext';
 import {
-  Store,
   Wallet,
   User,
   Shield,
@@ -25,8 +24,12 @@ export const Navbar: React.FC = () => {
     <header id="app-header" className="bg-[#0C0C0C] border-b border-[#262626] text-[#E5E5E5] px-5 py-3 flex items-center justify-between sticky top-0 z-30 shadow-2xl">
       {/* Brand & Store Name */}
       <div id="brand-container" className="flex items-center gap-3.5">
-        <div id="brand-logo" className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#D4AF37] to-[#AA8B28] flex items-center justify-center text-black font-extrabold shadow-lg shadow-[#D4AF37]/20">
-          <Store className="w-5 h-5 text-black" />
+        <div id="brand-logo" className="w-10 h-10 rounded-full bg-[#0C0C0C] border border-[#262626] flex items-center justify-center overflow-hidden shadow-lg shadow-[#D4AF37]/10">
+          <img
+            src="https://waappbusiness.com/wp-content/uploads/2026/01/cropped-walogo-blanco.png"
+            alt="Logo"
+            className="w-full h-full object-contain p-1"
+          />
         </div>
         <div>
           <h1 id="app-title" className="font-bold text-[#E5E5E5] text-base leading-tight tracking-wide">

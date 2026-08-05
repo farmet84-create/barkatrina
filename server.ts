@@ -3,13 +3,15 @@ import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { GoogleGenAI } from '@google/genai';
 import dotenv from 'dotenv';
+import { api } from './server/api';
 
 dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 app.use(express.json());
+app.use('/api', api);
 
 // Gemini AI assistant route for restaurant insights
 app.post('/api/ai-assistant', async (req, res) => {
