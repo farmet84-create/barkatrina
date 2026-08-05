@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { usePOS } from '../context/POSContext';
 import { Table, Order } from '../types/pos';
 import {
@@ -13,6 +13,20 @@ import {
   ArrowRight,
   Sparkles
 } from 'lucide-react';
+
+const tableStatusLabels: Record<Table['status'], string> = {
+  libre: 'Libre',
+  ocupada: 'Ocupada',
+  por_pagar: 'Por Pagar',
+  reservada: 'Reservada'
+};
+
+const tableStatusBadgeStyles: Record<Table['status'], string> = {
+  libre: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30',
+  ocupada: 'bg-[#D4AF37]/10 text-[#D4AF37] border border-[#D4AF37]/30',
+  por_pagar: 'bg-blue-500/10 text-blue-400 border border-blue-500/30 animate-pulse',
+  reservada: 'bg-purple-500/10 text-purple-400 border border-purple-500/30'
+};
 
 interface TablesModuleProps {
   setActiveTab: (tab: any) => void;
@@ -30,6 +44,14 @@ export const TablesModule: React.FC<TablesModuleProps> = ({ setActiveTab }) => {
 
   const [selectedZone, setSelectedZone] = useState<string>('Todas');
   const [selectedTable, setSelectedTable] = useState<Table | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = (message: string) => {
+    setToast(message);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 1800);
+  };
 
   const zones = ['Todas', 'Salón Principal', 'Terraza', 'Barra', 'VIP'];
 
@@ -55,6 +77,7 @@ export const TablesModule: React.FC<TablesModuleProps> = ({ setActiveTab }) => {
   const handleRequestBill = (table: Table) => {
     updateTableStatus(table.id, 'por_pagar');
     setSelectedTable(prev => prev ? { ...prev, status: 'por_pagar' } : null);
+    showToast(`✓ ${table.name} marcada Por Pagar`);
   };
 
   const handleFreeTable = (table: Table) => {
@@ -63,6 +86,7 @@ export const TablesModule: React.FC<TablesModuleProps> = ({ setActiveTab }) => {
       updateOrderStatus(order.id, 'cancelado');
     }
     updateTableStatus(table.id, 'libre');
+    showToast(`✓ ${table.name} liberada`);
     setSelectedTable(null);
   };
 
@@ -204,7 +228,12 @@ export const TablesModule: React.FC<TablesModuleProps> = ({ setActiveTab }) => {
             <div className="flex items-center justify-between border-b border-[#262626] pb-4">
               <div>
                 <span className="text-xs text-[#D4AF37] font-mono font-bold uppercase tracking-wider">{selectedTable.zone}</span>
-                <h3 className="text-xl font-bold text-[#E5E5E5]">{selectedTable.name}</h3>
+                <h3 className="text-xl font-bold text-[#E5E5E5] flex items-center gap-2.5">
+                  {selectedTable.name}
+                  <span className={`text-[10px] font-bold uppercase px-2.5 py-1 rounded-full ${tableStatusBadgeStyles[selectedTable.status]}`}>
+                    {tableStatusLabels[selectedTable.status]}
+                  </span>
+                </h3>
               </div>
               <button
                 onClick={() => setSelectedTable(null)}
@@ -284,6 +313,14 @@ export const TablesModule: React.FC<TablesModuleProps> = ({ setActiveTab }) => {
               </div>
             )}
           </div>
+        </div>
+      )}
+
+      {/* Action Feedback Toast */}
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] bg-[#161616] border border-[#D4AF37]/40 text-[#E5E5E5] px-5 py-3 rounded-full shadow-2xl flex items-center gap-2 text-xs font-semibold">
+          <CheckCircle2 className="w-4 h-4 text-[#D4AF37] flex-shrink-0" />
+          <span>{toast}</span>
         </div>
       )}
     </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { usePOS } from '../context/POSContext';
 import { Product } from '../types/pos';
 import { BillingModal } from './BillingModal';
@@ -13,7 +13,8 @@ import {
   Tag,
   AlertCircle,
   FileText,
-  ShoppingBag
+  ShoppingBag,
+  CheckCircle2
 } from 'lucide-react';
 
 export const POSModule: React.FC = () => {
@@ -40,6 +41,18 @@ export const POSModule: React.FC = () => {
   const [showCheckoutModal, setShowCheckoutModal] = useState(false);
   const [itemNoteModal, setItemNoteModal] = useState<{ productId: string; productName: string } | null>(null);
   const [customNoteText, setCustomNoteText] = useState('');
+  const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showToast = (message: string) => {
+    setToast(message);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(null), 1800);
+  };
+
+  useEffect(() => () => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+  }, []);
 
   // Filter products by category and search term
   const filteredProducts = products.filter(p => {
@@ -62,6 +75,8 @@ export const POSModule: React.FC = () => {
     }
     if (orderToUse) {
       await addItemToOrder(orderToUse.id, prod, 1);
+      const destino = orderToUse.tableName ? `a ${orderToUse.tableName}` : 'al pedido';
+      showToast(`✓ ${prod.name} agregado ${destino}`);
     }
   };
 
@@ -70,6 +85,8 @@ export const POSModule: React.FC = () => {
       const prod = products.find(p => p.id === itemNoteModal.productId);
       if (prod) {
         await addItemToOrder(currentOrder.id, prod, 1, customNoteText);
+        const destino = currentOrder.tableName ? `a ${currentOrder.tableName}` : 'al pedido';
+        showToast(`✓ ${prod.name} agregado ${destino}`);
       }
       setItemNoteModal(null);
       setCustomNoteText('');
@@ -274,7 +291,7 @@ export const POSModule: React.FC = () => {
                   </span>
 
                   <button
-                    onClick={() => removeItemFromOrder(currentOrder.id, item.id)}
+                    onClick={() => { removeItemFromOrder(currentOrder.id, item.id); showToast(`✕ ${item.productName} quitado`); }}
                     className="text-neutral-500 hover:text-rose-400 p-1"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
@@ -311,7 +328,7 @@ export const POSModule: React.FC = () => {
             <button
               id="btn-send-kitchen"
               disabled={!currentOrder || currentOrder.items.length === 0}
-              onClick={() => currentOrder && sendOrderToKitchen(currentOrder.id)}
+              onClick={() => { if (currentOrder) { sendOrderToKitchen(currentOrder.id); showToast('✓ Comanda enviada a cocina'); } }}
               className="bg-[#161616] hover:bg-[#202020] disabled:opacity-50 text-neutral-100 border border-[#262626] font-bold py-3 rounded-xl text-xs uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer transition-colors"
             >
               <ChefHat className="w-4 h-4 text-rose-400" />
@@ -369,6 +386,14 @@ export const POSModule: React.FC = () => {
           order={currentOrder}
           onClose={() => setShowCheckoutModal(false)}
         />
+      )}
+
+      {/* Action Feedback Toast */}
+      {toast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] bg-[#161616] border border-[#D4AF37]/40 text-[#E5E5E5] px-5 py-3 rounded-full shadow-2xl flex items-center gap-2 text-xs font-semibold">
+          <CheckCircle2 className="w-4 h-4 text-[#D4AF37] flex-shrink-0" />
+          <span>{toast}</span>
+        </div>
       )}
     </div>
   );

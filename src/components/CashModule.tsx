@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { usePOS } from '../context/POSContext';
 import { api } from '../api/client';
+import { InvoiceReceiptModal } from './InvoiceReceiptModal';
 import {
   Wallet,
   ArrowUpRight,
@@ -34,7 +35,8 @@ export const CashModule: React.FC = () => {
     openCashSession,
     closeCashSession,
     addCashMovement,
-    currentUser
+    currentUser,
+    invoices
   } = usePOS();
 
   const [openAmount, setOpenAmount] = useState<number>(200000);
@@ -43,6 +45,13 @@ export const CashModule: React.FC = () => {
   );
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [showMovementModal, setShowMovementModal] = useState(false);
+  const [viewInvoiceId, setViewInvoiceId] = useState<string | null>(null);
+
+  const findInvoiceForMovement = (reason: string) => {
+    const match = reason.match(/^Venta (.+)$/);
+    if (!match) return null;
+    return invoices.find(inv => inv.number === match[1]) || null;
+  };
 
   const [waiterSummaries, setWaiterSummaries] = useState<WaiterCashSummary[]>([]);
   const [selectedWaiterId, setSelectedWaiterId] = useState<string>('');
@@ -242,25 +251,35 @@ export const CashModule: React.FC = () => {
                       </td>
                     </tr>
                   ) : (
-                    cashMovements.map(mov => (
-                      <tr key={mov.id}>
-                        <td className="py-2.5 px-3">
-                          <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${
-                            mov.type === 'ingreso' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
-                          }`}>
-                            {mov.type}
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3 text-slate-200">{mov.reason}</td>
-                        <td className="py-2.5 px-3 text-slate-400">{mov.user}</td>
-                        <td className={`py-2.5 px-3 text-right font-mono font-bold ${mov.type === 'ingreso' ? 'text-emerald-400' : 'text-rose-400'}`}>
-                          {mov.type === 'ingreso' ? '+' : '-'}${mov.amount.toLocaleString('es-CO')}
-                        </td>
-                        <td className="py-2.5 px-3 text-center text-slate-500 font-mono">
-                          {new Date(mov.createdAt).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
-                        </td>
-                      </tr>
-                    ))
+                    cashMovements.map(mov => {
+                      const relatedInvoice = findInvoiceForMovement(mov.reason);
+                      return (
+                        <tr
+                          key={mov.id}
+                          onClick={() => relatedInvoice && setViewInvoiceId(relatedInvoice.id)}
+                          className={relatedInvoice ? 'cursor-pointer hover:bg-slate-800/60' : ''}
+                        >
+                          <td className="py-2.5 px-3">
+                            <span className={`px-2 py-0.5 rounded text-[10px] uppercase font-bold ${
+                              mov.type === 'ingreso' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-rose-500/10 text-rose-400 border border-rose-500/30'
+                            }`}>
+                              {mov.type}
+                            </span>
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-200">
+                            {mov.reason}
+                            {relatedInvoice && <span className="ml-2 text-[10px] text-amber-400 underline">Ver factura</span>}
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-400">{mov.user}</td>
+                          <td className={`py-2.5 px-3 text-right font-mono font-bold ${mov.type === 'ingreso' ? 'text-emerald-400' : 'text-rose-400'}`}>
+                            {mov.type === 'ingreso' ? '+' : '-'}${mov.amount.toLocaleString('es-CO')}
+                          </td>
+                          <td className="py-2.5 px-3 text-center text-slate-500 font-mono">
+                            {new Date(mov.createdAt).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -414,6 +433,12 @@ export const CashModule: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Invoice Receipt Modal */}
+      {viewInvoiceId && (() => {
+        const inv = invoices.find(i => i.id === viewInvoiceId);
+        return inv ? <InvoiceReceiptModal invoice={inv} onClose={() => setViewInvoiceId(null)} /> : null;
+      })()}
     </div>
   );
 };
