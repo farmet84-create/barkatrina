@@ -85,6 +85,7 @@ interface POSContextType {
   employees: Employee[];
   addEmployee: (emp: Omit<Employee, 'id'>) => void;
   updateEmployee: (id: string, emp: Partial<Employee>) => void;
+  changeEmployeePassword: (id: string, newPassword: string) => Promise<boolean>;
 
   // Inventory, Purchases & Expenses
   suppliers: Supplier[];
@@ -391,6 +392,16 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     api.patch(`/employees/${id}`, empData).catch(err => console.error('Error updating employee', err));
   };
 
+  const changeEmployeePassword = async (id: string, newPassword: string): Promise<boolean> => {
+    try {
+      await api.patch(`/employees/${id}/password`, { newPassword });
+      return true;
+    } catch (err) {
+      console.error('Error changing employee password', err);
+      return false;
+    }
+  };
+
   // Inventory & Purchases
   const addExpense = (expData: Omit<Expense, 'id' | 'date' | 'registeredBy'>) => {
     api.post('/expenses', { ...expData, employeeId: currentUser?.id })
@@ -496,6 +507,7 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       employees,
       addEmployee,
       updateEmployee,
+      changeEmployeePassword,
       suppliers,
       expenses,
       stockMovements,

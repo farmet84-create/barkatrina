@@ -1,5 +1,6 @@
 import React from 'react';
 import { usePOS } from '../context/POSContext';
+import { TAB_ACCESS } from '../access';
 import {
   LayoutDashboard,
   Utensils,
@@ -37,7 +38,7 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, onClose }) => {
-  const { orders, products, cashSession } = usePOS();
+  const { orders, products, cashSession, currentUser } = usePOS();
 
   // Active badges
   const pendingKitchenCount = orders.filter(o => o.status === 'en_cocina').length;
@@ -115,7 +116,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpe
       icon: Settings,
       badge: null
     }
-  ];
+  ].filter(item => TAB_ACCESS[currentUser.role].includes(item.id as any));
 
   return (
     <>

@@ -845,6 +845,20 @@ api.patch('/employees/:id', ok(async (req, res) => {
   res.json(mapEmployee(rows[0]));
 }));
 
+api.patch('/employees/:id/password', ok(async (req, res) => {
+  const { newPassword } = req.body;
+  if (!newPassword || String(newPassword).length < 6) {
+    return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+  }
+  const hash = await bcrypt.hash(String(newPassword), 10);
+  const { rowCount } = await q(
+    `UPDATE usuarios SET contrasena_hash = $1 WHERE id_empleado = $2`,
+    [hash, Number(req.params.id)]
+  );
+  if (!rowCount) return res.status(404).json({ error: 'Este empleado no tiene cuenta de usuario' });
+  res.json({ ok: true });
+}));
+
 // ---------- suppliers ----------
 
 api.get('/suppliers', ok(async (_req, res) => {

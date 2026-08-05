@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { usePOS } from '../context/POSContext';
-import { UserCheck, ShieldCheck, Plus, Check, X, Edit2 } from 'lucide-react';
+import { UserCheck, ShieldCheck, Plus, Check, X, Edit2, KeyRound } from 'lucide-react';
 import { Role, Employee } from '../types/pos';
 
 export const EmployeesModule: React.FC = () => {
-  const { employees, addEmployee, updateEmployee, rolePermissions } = usePOS();
+  const { employees, addEmployee, updateEmployee, changeEmployeePassword, rolePermissions } = usePOS();
 
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -13,6 +13,8 @@ export const EmployeesModule: React.FC = () => {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [active, setActive] = useState(true);
+  const [newPassword, setNewPassword] = useState('');
+  const [passwordMsg, setPasswordMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const handleOpenNew = () => {
     setEditingId(null);
@@ -31,7 +33,21 @@ export const EmployeesModule: React.FC = () => {
     setEmail(emp.email);
     setPhone(emp.phone);
     setActive(emp.active);
+    setNewPassword('');
+    setPasswordMsg(null);
     setShowModal(true);
+  };
+
+  const handleChangePassword = async () => {
+    if (!editingId || newPassword.length < 6) {
+      setPasswordMsg({ ok: false, text: 'Mínimo 6 caracteres' });
+      return;
+    }
+    const ok = await changeEmployeePassword(editingId, newPassword);
+    setPasswordMsg(ok
+      ? { ok: true, text: 'Contraseña actualizada' }
+      : { ok: false, text: 'No se pudo actualizar' });
+    if (ok) setNewPassword('');
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -201,6 +217,36 @@ export const EmployeesModule: React.FC = () => {
                 </label>
               )}
             </div>
+
+            {editingId && (
+              <div className="border-t border-[#262626] pt-4 space-y-2">
+                <label className="text-neutral-400 block font-semibold flex items-center gap-1.5">
+                  <KeyRound className="w-3.5 h-3.5 text-[#D4AF37]" />
+                  Restablecer contraseña
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="password"
+                    placeholder="Nueva contraseña (mín. 6 caracteres)"
+                    value={newPassword}
+                    onChange={(e) => { setNewPassword(e.target.value); setPasswordMsg(null); }}
+                    className="flex-1 bg-[#161616] border border-[#262626] p-2.5 rounded-xl text-[#E5E5E5] placeholder:text-neutral-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleChangePassword}
+                    className="px-3.5 py-2 bg-[#161616] hover:bg-[#202020] border border-[#262626] text-neutral-300 hover:text-[#D4AF37] rounded-xl font-bold cursor-pointer whitespace-nowrap"
+                  >
+                    Guardar
+                  </button>
+                </div>
+                {passwordMsg && (
+                  <p className={`text-[11px] font-semibold ${passwordMsg.ok ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    {passwordMsg.text}
+                  </p>
+                )}
+              </div>
+            )}
 
             <div className="flex justify-end gap-2.5 pt-2">
               <button

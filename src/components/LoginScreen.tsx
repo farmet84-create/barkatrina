@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { LogIn, Lock, User } from 'lucide-react';
 import { api, setAuthToken } from '../api/client';
+import { Footer } from './Footer';
 
 interface LoginScreenProps {
   onLoginSuccess: () => void;
@@ -28,7 +29,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A0A0A] text-[#E5E5E5] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#0A0A0A] text-[#E5E5E5] flex flex-col">
+      <div className="flex-1 flex items-center justify-center p-4">
       <form onSubmit={handleSubmit} className="w-full max-w-sm bg-[#0F0F0F] border border-[#262626] rounded-2xl p-7 space-y-5 shadow-2xl">
         <div className="text-center space-y-2">
           <img
@@ -80,6 +82,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
           <span>{loading ? 'Ingresando...' : 'Ingresar'}</span>
         </button>
       </form>
+      </div>
+      <Footer />
     </div>
   );
 };
