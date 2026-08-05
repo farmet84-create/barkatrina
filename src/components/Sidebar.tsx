@@ -1,6 +1,7 @@
 import React from 'react';
 import { usePOS } from '../context/POSContext';
 import { TAB_ACCESS } from '../access';
+import logoKatrina from '../assets/logo-katrina.png';
 import {
   LayoutDashboard,
   Utensils,
@@ -137,6 +138,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpe
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
       {/* Navigation Links */}
+      <div className="flex-1 flex flex-col">
       <nav id="sidebar-nav" className="p-3.5 space-y-1.5">
         <div className="flex items-center justify-between px-3.5 py-2">
           <span className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-[0.2em]">
@@ -181,6 +183,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpe
           );
         })}
       </nav>
+
+      {/* Brand logo footer */}
+      <div id="sidebar-logo" className="flex-1 flex items-end justify-center p-3.5 pb-6">
+        <img
+          src={logoKatrina}
+          alt="La Katrina Gastro Bar"
+          className="w-32 h-auto opacity-90"
+        />
+      </div>
+      </div>
 
       {/* Low Stock Footer Warning */}
       {lowStockCount > 0 && (
