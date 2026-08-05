@@ -185,11 +185,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpe
       </nav>
 
       {/* Brand logo footer */}
-      <div id="sidebar-logo" className="flex-1 flex items-end justify-center p-3.5 pb-6">
+      <div id="sidebar-logo" className="flex-1 flex items-end justify-center p-3 min-h-0">
         <img
           src={logoKatrina}
           alt="La Katrina Gastro Bar"
-          className="w-32 h-auto opacity-90"
+          className="max-w-[70%] max-h-20 w-auto h-auto object-contain opacity-90"
         />
       </div>
       </div>
