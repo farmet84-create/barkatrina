@@ -1,9 +1,26 @@
 const BASE = '/api';
+const TOKEN_KEY = 'auth_token';
+
+let authToken: string | null = localStorage.getItem(TOKEN_KEY);
+
+export function setAuthToken(token: string | null) {
+  authToken = token;
+  if (token) localStorage.setItem(TOKEN_KEY, token);
+  else localStorage.removeItem(TOKEN_KEY);
+}
+
+export function getAuthToken() {
+  return authToken;
+}
 
 async function request(method: string, path: string, body?: any) {
+  const headers: Record<string, string> = {};
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  if (authToken) headers['Authorization'] = `Bearer ${authToken}`;
+
   const res = await fetch(`${BASE}${path}`, {
     method,
-    headers: body !== undefined ? { 'Content-Type': 'application/json' } : undefined,
+    headers,
     body: body !== undefined ? JSON.stringify(body) : undefined
   });
   if (!res.ok) {

@@ -1,5 +1,7 @@
 import { Router } from 'express';
+import bcrypt from 'bcryptjs';
 import { pool, q } from './db';
+import { createSession, getSession, destroySession } from './sessions';
 
 export const api = Router();
 
@@ -279,6 +281,55 @@ function mapCashMovement(r: any) {
   };
 }
 
+// ---------- auth ----------
+
+api.post('/auth/login', ok(async (req, res) => {
+  const { usuario, contrasena } = req.body;
+  const { rows } = await q(
+    `SELECT u.id_usuario, u.id_empleado, u.contrasena_hash, u.estado AS usuario_estado,
+            e.id_empleado AS emp_id, e.nombre, e.rol, e.correo, e.celular, e.estado AS empleado_estado
+     FROM usuarios u
+     JOIN empleados e ON e.id_empleado = u.id_empleado
+     WHERE u.usuario = $1`,
+    [usuario]
+  );
+  const row = rows[0];
+  if (!row || row.usuario_estado !== 'Activo' || row.empleado_estado !== 'Activo') {
+    return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
+  }
+  const match = await bcrypt.compare(contrasena || '', row.contrasena_hash);
+  if (!match) {
+    return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
+  }
+  const token = createSession(row.id_usuario, row.id_empleado);
+  res.json({
+    token,
+    employee: {
+      id: String(row.emp_id),
+      name: row.nombre,
+      role: roleDbToFe[row.rol] || 'mesero',
+      email: row.correo || '',
+      phone: row.celular || '',
+      active: row.empleado_estado === 'Activo'
+    }
+  });
+}));
+
+api.get('/auth/me', ok(async (req, res) => {
+  const token = (req.headers.authorization || '').replace('Bearer ', '');
+  const session = getSession(token);
+  if (!session || !session.idEmpleado) return res.status(401).json({ error: 'Sesión inválida' });
+  const { rows } = await q('SELECT * FROM empleados WHERE id_empleado = $1 AND estado = $2', [session.idEmpleado, 'Activo']);
+  if (!rows[0]) return res.status(401).json({ error: 'Sesión inválida' });
+  res.json(mapEmployee(rows[0]));
+}));
+
+api.post('/auth/logout', ok(async (req, res) => {
+  const token = (req.headers.authorization || '').replace('Bearer ', '');
+  if (token) destroySession(token);
+  res.json({ ok: true });
+}));
+
 // ---------- config ----------
 
 api.get('/config', ok(async (_req, res) => {
@@ -530,12 +581,15 @@ api.patch('/orders/:id/status', ok(async (req, res) => {
 
 const INVOICE_SELECT = `
   SELECT f.*, c.nombre AS cliente_nombre, c.documento AS cliente_documento,
-    fp.nombre AS forma_pago_nombre, e.nombre AS cajero_nombre
+    fp.nombre AS forma_pago_nombre, e.nombre AS cajero_nombre, ew.nombre AS mesero_nombre
   FROM facturas f
   LEFT JOIN clientes c ON c.id_cliente = f.id_cliente
   LEFT JOIN formas_pago fp ON fp.id_forma_pago = f.id_forma_pago
   LEFT JOIN usuarios u ON u.id_usuario = f.id_usuario
-  LEFT JOIN empleados e ON e.id_empleado = u.id_empleado`;
+  LEFT JOIN empleados e ON e.id_empleado = u.id_empleado
+  LEFT JOIN pedidos p ON p.id_pedido = f.id_pedido
+  LEFT JOIN usuarios uw ON uw.id_usuario = p.id_usuario
+  LEFT JOIN empleados ew ON ew.id_empleado = uw.id_empleado`;
 
 async function loadFullInvoice(idFactura: number) {
   const { rows } = await q(`${INVOICE_SELECT} WHERE f.id_factura = $1`, [idFactura]);

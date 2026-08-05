@@ -17,12 +17,14 @@ import {
   Role,
   PaymentMethod
 } from '../types/pos';
-import { api } from '../api/client';
+import { api, getAuthToken, setAuthToken } from '../api/client';
+import { LoginScreen } from '../components/LoginScreen';
 
 interface POSContextType {
   // Current user / role
   currentUser: Employee;
   setCurrentUser: (emp: Employee) => void;
+  logout: () => void;
   rolePermissions: Record<Role, any>;
 
   // System Config
@@ -111,6 +113,8 @@ const rolePermissions = {
 };
 
 export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [authChecked, setAuthChecked] = useState(false);
+  const [authed, setAuthed] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -136,6 +140,26 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   useEffect(() => {
     (async () => {
+      const token = getAuthToken();
+      if (!token) {
+        setAuthChecked(true);
+        return;
+      }
+      try {
+        const me: Employee = await api.get('/auth/me');
+        setCurrentUser(me);
+        setAuthed(true);
+      } catch (err) {
+        setAuthToken(null);
+      } finally {
+        setAuthChecked(true);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!authed) return;
+    (async () => {
       try {
         const data = await api.get('/bootstrap');
         setConfig(data.config);
@@ -145,7 +169,6 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setOrders(data.orders);
         setCustomers(data.customers);
         setEmployees(data.employees);
-        setCurrentUser(data.employees[0] || null);
         setSuppliers(data.suppliers);
         setExpenses(data.expenses);
         setStockMovements(data.stockMovements);
@@ -159,7 +182,23 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setLoadError(err.message || 'No se pudo conectar con el servidor');
       }
     })();
-  }, []);
+  }, [authed]);
+
+  const logout = () => {
+    api.post('/auth/logout').catch(() => {});
+    setAuthToken(null);
+    window.location.reload();
+  };
+
+  const handleLoginSuccess = async () => {
+    try {
+      const me: Employee = await api.get('/auth/me');
+      setCurrentUser(me);
+      setAuthed(true);
+    } catch (err) {
+      console.error('Error fetching current user after login', err);
+    }
+  };
 
   const refreshTables = async () => setTables(await api.get('/tables'));
   const refreshProducts = async () => setProducts(await api.get('/products'));
@@ -386,6 +425,18 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       .catch(err => console.error('Error creating purchase order', err));
   };
 
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
+        <p className="text-sm text-neutral-400 tracking-wide">Cargando ERP POS…</p>
+      </div>
+    );
+  }
+
+  if (!authed) {
+    return <LoginScreen onLoginSuccess={handleLoginSuccess} />;
+  }
+
   if (loadError) {
     return (
       <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6">
@@ -409,6 +460,7 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     <POSContext.Provider value={{
       currentUser,
       setCurrentUser,
+      logout,
       rolePermissions,
       config,
       updateConfig,

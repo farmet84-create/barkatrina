@@ -1,22 +1,49 @@
 import React, { useState } from 'react';
 import { usePOS } from '../context/POSContext';
-import { UserCheck, ShieldCheck, Plus, Check, X } from 'lucide-react';
-import { Role } from '../types/pos';
+import { UserCheck, ShieldCheck, Plus, Check, X, Edit2 } from 'lucide-react';
+import { Role, Employee } from '../types/pos';
 
 export const EmployeesModule: React.FC = () => {
   const { employees, addEmployee, updateEmployee, rolePermissions } = usePOS();
 
   const [showModal, setShowModal] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [role, setRole] = useState<Role>('mesero');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [active, setActive] = useState(true);
+
+  const handleOpenNew = () => {
+    setEditingId(null);
+    setName('');
+    setRole('mesero');
+    setEmail('');
+    setPhone('');
+    setActive(true);
+    setShowModal(true);
+  };
+
+  const handleOpenEdit = (emp: Employee) => {
+    setEditingId(emp.id);
+    setName(emp.name);
+    setRole(emp.role);
+    setEmail(emp.email);
+    setPhone(emp.phone);
+    setActive(emp.active);
+    setShowModal(true);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name) return;
-    addEmployee({ name, role, email, phone, active: true });
+    if (editingId) {
+      updateEmployee(editingId, { name, role, email, phone, active });
+    } else {
+      addEmployee({ name, role, email, phone, active: true });
+    }
     setShowModal(false);
+    setEditingId(null);
     setName('');
     setEmail('');
     setPhone('');
@@ -44,7 +71,7 @@ export const EmployeesModule: React.FC = () => {
         </div>
 
         <button
-          onClick={() => setShowModal(true)}
+          onClick={handleOpenNew}
           className="bg-[#D4AF37] hover:bg-[#c29f2e] text-black font-extrabold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 cursor-pointer shadow-lg shadow-[#D4AF37]/10 transition-all"
         >
           <Plus className="w-4 h-4 text-black" />
@@ -61,11 +88,20 @@ export const EmployeesModule: React.FC = () => {
               <h3 className="font-bold text-[#E5E5E5] text-base">{emp.name}</h3>
               <p className="text-xs text-neutral-400 mt-0.5">{emp.email} • {emp.phone}</p>
             </div>
-            <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${
-              emp.active ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-            }`}>
-              {emp.active ? 'Activo' : 'Inactivo'}
-            </span>
+            <div className="flex items-center gap-2.5">
+              <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${
+                emp.active ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+              }`}>
+                {emp.active ? 'Activo' : 'Inactivo'}
+              </span>
+              <button
+                onClick={() => handleOpenEdit(emp)}
+                className="p-1.5 rounded-xl bg-[#161616] hover:bg-[#202020] border border-[#262626] text-neutral-300 hover:text-[#D4AF37] cursor-pointer"
+                title="Editar colaborador"
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         ))}
       </div>
@@ -119,7 +155,7 @@ export const EmployeesModule: React.FC = () => {
       {showModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
           <form onSubmit={handleSubmit} className="bg-[#0F0F0F] border border-[#262626] rounded-2xl max-w-sm w-full p-6 space-y-4 shadow-2xl">
-            <h3 className="font-bold text-[#E5E5E5] text-sm">Registrar Colaborador</h3>
+            <h3 className="font-bold text-[#E5E5E5] text-sm">{editingId ? 'Editar Colaborador' : 'Registrar Colaborador'}</h3>
             <div className="space-y-3 text-xs">
               <input
                 type="text"
@@ -153,12 +189,23 @@ export const EmployeesModule: React.FC = () => {
                 onChange={(e) => setPhone(e.target.value)}
                 className="w-full bg-[#161616] border border-[#262626] p-2.5 rounded-xl text-[#E5E5E5] placeholder:text-neutral-500"
               />
+              {editingId && (
+                <label className="flex items-center gap-2.5 bg-[#161616] border border-[#262626] p-2.5 rounded-xl cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={active}
+                    onChange={(e) => setActive(e.target.checked)}
+                    className="w-4 h-4 accent-[#D4AF37]"
+                  />
+                  <span className="text-neutral-300 font-semibold">Colaborador activo</span>
+                </label>
+              )}
             </div>
 
             <div className="flex justify-end gap-2.5 pt-2">
               <button
                 type="button"
-                onClick={() => setShowModal(false)}
+                onClick={() => { setShowModal(false); setEditingId(null); }}
                 className="px-4 py-2 bg-[#161616] text-neutral-300 text-xs rounded-xl font-bold cursor-pointer"
               >
                 Cancelar
