@@ -7,11 +7,16 @@ import {
   Bell,
   Clock,
   LogOut,
-  ChevronDown
+  ChevronDown,
+  Menu
 } from 'lucide-react';
 
-export const Navbar: React.FC = () => {
-  const { config, cashSession, currentUser, setCurrentUser, employees } = usePOS();
+interface NavbarProps {
+  onMenuClick: () => void;
+}
+
+export const Navbar: React.FC<NavbarProps> = ({ onMenuClick }) => {
+  const { cashSession, currentUser, setCurrentUser, employees } = usePOS();
 
   const now = new Date();
   const formattedDate = now.toLocaleDateString('es-ES', {
@@ -21,25 +26,23 @@ export const Navbar: React.FC = () => {
   });
 
   return (
-    <header id="app-header" className="bg-[#0C0C0C] border-b border-[#262626] text-[#E5E5E5] px-5 py-3 flex items-center justify-between sticky top-0 z-30 shadow-2xl">
+    <header id="app-header" className="bg-[#0C0C0C] border-b border-[#262626] text-[#E5E5E5] px-3 sm:px-5 py-3 flex items-center justify-between gap-2 sticky top-0 z-30 shadow-2xl">
       {/* Brand & Store Name */}
-      <div id="brand-container" className="flex items-center gap-3.5">
-        <div id="brand-logo" className="w-10 h-10 rounded-full bg-[#0C0C0C] border border-[#262626] flex items-center justify-center overflow-hidden shadow-lg shadow-[#D4AF37]/10">
+      <div id="brand-container" className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
+        <button
+          id="sidebar-open-btn"
+          onClick={onMenuClick}
+          className="lg:hidden flex-shrink-0 text-neutral-300 hover:text-white p-1.5 -ml-1 rounded-lg hover:bg-[#1a1a1a]"
+          aria-label="Abrir menú"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+        <div id="brand-logo" className="h-11 sm:h-14 flex items-center justify-center overflow-hidden flex-shrink-0">
           <img
             src="https://waappbusiness.com/wp-content/uploads/2026/01/cropped-walogo-blanco.png"
             alt="Logo"
-            className="w-full h-full object-contain p-1"
+            className="h-full w-auto object-contain"
           />
-        </div>
-        <div>
-          <h1 id="app-title" className="font-bold text-[#E5E5E5] text-base leading-tight tracking-wide">
-            {config.businessName}
-          </h1>
-          <p id="app-subtitle" className="text-[11px] text-[#D4AF37] font-medium flex items-center gap-1.5 tracking-wider">
-            <span className="uppercase tracking-[0.15em] text-[10px] font-semibold">ERP POS Bar & Restaurante</span>
-            <span className="text-[#444]">•</span>
-            <span className="text-neutral-400 font-mono">NIT: {config.taxId}</span>
-          </p>
         </div>
       </div>
 
@@ -70,17 +73,17 @@ export const Navbar: React.FC = () => {
       </div>
 
       {/* User & Role Switcher */}
-      <div id="header-user-actions" className="flex items-center gap-3">
+      <div id="header-user-actions" className="flex items-center gap-3 flex-shrink-0">
         <div id="role-selector" className="relative group">
-          <div className="flex items-center gap-2.5 bg-[#161616] hover:bg-[#1f1f1f] border border-[#262626] hover:border-[#D4AF37]/50 text-[#E5E5E5] px-3.5 py-1.5 rounded-full text-xs font-medium cursor-pointer transition-all">
-            <User className="w-4 h-4 text-[#D4AF37]" />
-            <div className="text-left">
+          <div className="flex items-center gap-2 sm:gap-2.5 bg-[#161616] hover:bg-[#1f1f1f] border border-[#262626] hover:border-[#D4AF37]/50 text-[#E5E5E5] px-2.5 sm:px-3.5 py-1.5 rounded-full text-xs font-medium cursor-pointer transition-all">
+            <User className="w-4 h-4 text-[#D4AF37] flex-shrink-0" />
+            <div className="text-left hidden sm:block">
               <div className="font-bold text-[#E5E5E5] leading-none">{currentUser.name}</div>
               <div className="text-[9px] text-[#D4AF37] uppercase font-mono tracking-widest mt-0.5">
                 {currentUser.role}
               </div>
             </div>
-            <ChevronDown className="w-3.5 h-3.5 text-neutral-500 ml-1" />
+            <ChevronDown className="w-3.5 h-3.5 text-neutral-500 ml-0.5 sm:ml-1" />
           </div>
 
           {/* User Select Dropdown */}

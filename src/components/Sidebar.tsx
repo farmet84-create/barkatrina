@@ -11,7 +11,8 @@ import {
   UserCheck,
   BarChart3,
   Settings,
-  AlertCircle
+  AlertCircle,
+  X
 } from 'lucide-react';
 
 export type ActiveTab =
@@ -29,9 +30,11 @@ export type ActiveTab =
 interface SidebarProps {
   activeTab: ActiveTab;
   setActiveTab: (tab: ActiveTab) => void;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpen, onClose }) => {
   const { orders, products, cashSession } = usePOS();
 
   // Active badges
@@ -107,11 +110,37 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
   ];
 
   return (
-    <aside id="app-sidebar" className="w-64 bg-[#0F0F0F] border-r border-[#262626] text-neutral-300 flex flex-col justify-between flex-shrink-0 min-h-[calc(100vh-61px)]">
+    <>
+      {/* Mobile backdrop */}
+      {isOpen && (
+        <div
+          id="sidebar-backdrop"
+          onClick={onClose}
+          className="fixed inset-0 bg-black/60 z-30 lg:hidden"
+        />
+      )}
+
+      <aside
+        id="app-sidebar"
+        className={`w-64 bg-[#0F0F0F] border-r border-[#262626] text-neutral-300 flex flex-col justify-between flex-shrink-0
+          fixed inset-y-0 left-0 z-40 overflow-y-auto transition-transform duration-300 ease-in-out
+          lg:static lg:translate-x-0 lg:z-auto lg:min-h-[calc(100vh-61px)]
+          ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      >
       {/* Navigation Links */}
       <nav id="sidebar-nav" className="p-3.5 space-y-1.5">
-        <div className="px-3.5 py-2 text-[10px] font-bold text-[#D4AF37] uppercase tracking-[0.2em]">
-          Módulos ERP POS
+        <div className="flex items-center justify-between px-3.5 py-2">
+          <span className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-[0.2em]">
+            Módulos ERP POS
+          </span>
+          <button
+            id="sidebar-close-btn"
+            onClick={onClose}
+            className="lg:hidden text-neutral-400 hover:text-white p-1"
+            aria-label="Cerrar menú"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
         {navItems.map(item => {
@@ -153,6 +182,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab }) => 
           </div>
         </div>
       )}
-    </aside>
+      </aside>
+    </>
   );
 };

@@ -15,16 +15,22 @@ import { SettingsModule } from './components/SettingsModule';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('dashboard');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const handleSetActiveTab = (tab: ActiveTab) => {
+    setActiveTab(tab);
+    setSidebarOpen(false);
+  };
 
   return (
     <POSProvider>
       <div id="pos-app-root" className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-amber-500 selection:text-slate-950">
-        <Navbar />
+        <Navbar onMenuClick={() => setSidebarOpen(true)} />
 
-        <div id="main-layout-container" className="flex flex-1 overflow-hidden">
-          <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+        <div id="main-layout-container" className="flex flex-1 overflow-hidden relative">
+          <Sidebar activeTab={activeTab} setActiveTab={handleSetActiveTab} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-          <main id="main-content-viewport" className="flex-1 overflow-y-auto min-w-0 bg-slate-950">
+          <main id="main-content-viewport" className="flex-1 overflow-y-auto min-w-0 bg-slate-950 w-full">
             {activeTab === 'dashboard' && <DashboardModule setActiveTab={setActiveTab} />}
             {activeTab === 'tables' && <TablesModule setActiveTab={setActiveTab} />}
             {activeTab === 'pos' && <POSModule />}
