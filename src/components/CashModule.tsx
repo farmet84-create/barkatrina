@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePOS } from '../context/POSContext';
+import { api } from '../api/client';
 import {
   Wallet,
   ArrowUpRight,
@@ -11,8 +12,20 @@ import {
   Unlock,
   AlertTriangle,
   History,
-  PlusCircle
+  PlusCircle,
+  UserCheck
 } from 'lucide-react';
+
+interface WaiterCashSummary {
+  employeeId: string | null;
+  employeeName: string;
+  efectivo: number;
+  tarjeta: number;
+  transferencia: number;
+  puntos: number;
+  mixto: number;
+  total: number;
+}
 
 export const CashModule: React.FC = () => {
   const {
@@ -30,6 +43,21 @@ export const CashModule: React.FC = () => {
   );
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [showMovementModal, setShowMovementModal] = useState(false);
+
+  const [waiterSummaries, setWaiterSummaries] = useState<WaiterCashSummary[]>([]);
+  const [selectedWaiterId, setSelectedWaiterId] = useState<string>('');
+
+  useEffect(() => {
+    if (cashSession?.status !== 'abierta') return;
+    api.get('/cash/current/by-waiter')
+      .then((data: WaiterCashSummary[]) => {
+        setWaiterSummaries(data);
+        if (data.length > 0) setSelectedWaiterId(prev => prev || (data[0].employeeId ?? 'sin-mesero'));
+      })
+      .catch(err => console.error('Error loading cash by waiter', err));
+  }, [cashSession?.status, cashMovements.length]);
+
+  const selectedWaiter = waiterSummaries.find(w => (w.employeeId ?? 'sin-mesero') === selectedWaiterId);
 
   const [movType, setMovType] = useState<'ingreso' | 'egreso'>('ingreso');
   const [movAmount, setMovAmount] = useState<number>(0);
@@ -135,6 +163,58 @@ export const CashModule: React.FC = () => {
               <p className="text-[10px] text-slate-400">Base + Ventas Efectivo + Ingresos - Egresos</p>
             </div>
           </div>
+
+          {/* Sales by Waiter */}
+          {waiterSummaries.length > 0 && (
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <h3 className="font-bold text-slate-100 text-sm flex items-center gap-2">
+                  <UserCheck className="w-4 h-4 text-amber-400" />
+                  <span>Ventas por Mesero (Turno Actual)</span>
+                </h3>
+                <select
+                  value={selectedWaiterId}
+                  onChange={(e) => setSelectedWaiterId(e.target.value)}
+                  className="bg-slate-950 border border-slate-800 text-slate-100 text-xs px-3 py-2 rounded-xl focus:outline-none"
+                >
+                  {waiterSummaries.map(w => (
+                    <option key={w.employeeId ?? 'sin-mesero'} value={w.employeeId ?? 'sin-mesero'}>
+                      {w.employeeName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedWaiter && (
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                  <div className="bg-slate-950 border border-emerald-500/30 p-4 rounded-xl space-y-1">
+                    <span className="text-slate-400 text-xs block">Efectivo</span>
+                    <span className="text-xl font-black font-mono text-emerald-400">
+                      ${selectedWaiter.efectivo.toLocaleString('es-CO')}
+                    </span>
+                  </div>
+                  <div className="bg-slate-950 border border-blue-500/30 p-4 rounded-xl space-y-1">
+                    <span className="text-slate-400 text-xs block">Transferencias</span>
+                    <span className="text-xl font-black font-mono text-blue-400">
+                      ${selectedWaiter.transferencia.toLocaleString('es-CO')}
+                    </span>
+                  </div>
+                  <div className="bg-slate-950 border border-slate-800 p-4 rounded-xl space-y-1">
+                    <span className="text-slate-400 text-xs block">Tarjeta / Otros</span>
+                    <span className="text-xl font-black font-mono text-slate-300">
+                      ${(selectedWaiter.tarjeta + selectedWaiter.puntos + selectedWaiter.mixto).toLocaleString('es-CO')}
+                    </span>
+                  </div>
+                  <div className="bg-slate-950 border border-amber-500/30 p-4 rounded-xl space-y-1">
+                    <span className="text-amber-400 text-xs font-semibold block">Total Vendido</span>
+                    <span className="text-xl font-black font-mono text-amber-400">
+                      ${selectedWaiter.total.toLocaleString('es-CO')}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Cash Movement Table */}
           <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 space-y-4">

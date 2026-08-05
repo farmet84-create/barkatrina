@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { usePOS } from '../context/POSContext';
+import logoKatrina from '../assets/logo-katrina.png';
 import {
   Settings,
   Sparkles,
@@ -70,6 +71,9 @@ export const SettingsModule: React.FC = () => {
         <p className="text-xs text-neutral-400 mt-1">
           Ajustes generales, diccionario de datos, flujo operativo y consultor inteligente impulsado por Gemini AI.
         </p>
+        <div className="flex justify-center pt-5">
+          <img src={logoKatrina} alt="La Katrina Gastro Bar" className="h-40 w-auto object-contain" />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

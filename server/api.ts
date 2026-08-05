@@ -724,6 +724,46 @@ api.get('/cash/current', ok(async (_req, res) => {
   res.json({ session, movements: movs.map(mapCashMovement) });
 }));
 
+api.get('/cash/current/by-waiter', ok(async (_req, res) => {
+  const { rows: sesionRows } = await q(`SELECT id_sesion FROM caja_sesiones WHERE estado = 'Abierta' ORDER BY id_sesion DESC LIMIT 1`);
+  if (!sesionRows[0]) return res.json([]);
+
+  const { rows } = await q(
+    `SELECT e.id_empleado, e.nombre AS empleado_nombre, fp.nombre AS forma_pago, f.total
+     FROM caja_movimientos cm
+     JOIN facturas f ON f.id_factura = cm.id_factura
+     JOIN pedidos p ON p.id_pedido = f.id_pedido
+     LEFT JOIN usuarios u ON u.id_usuario = p.id_usuario
+     LEFT JOIN empleados e ON e.id_empleado = u.id_empleado
+     LEFT JOIN formas_pago fp ON fp.id_forma_pago = f.id_forma_pago
+     WHERE cm.id_sesion = $1 AND cm.tipo = 'Ingreso'`,
+    [sesionRows[0].id_sesion]
+  );
+
+  const byWaiter = new Map<string, any>();
+  for (const r of rows) {
+    const key = r.id_empleado !== null ? String(r.id_empleado) : 'sin-mesero';
+    if (!byWaiter.has(key)) {
+      byWaiter.set(key, {
+        employeeId: r.id_empleado !== null ? String(r.id_empleado) : null,
+        employeeName: r.empleado_nombre || 'Sin mesero asignado',
+        efectivo: 0, tarjeta: 0, transferencia: 0, puntos: 0, mixto: 0, total: 0
+      });
+    }
+    const entry = byWaiter.get(key);
+    const metodo = (r.forma_pago || '').toLowerCase();
+    const monto = Number(r.total);
+    if (metodo === 'efectivo') entry.efectivo += monto;
+    else if (metodo === 'tarjeta') entry.tarjeta += monto;
+    else if (metodo === 'transferencia' || metodo === 'nequi') entry.transferencia += monto;
+    else if (metodo === 'puntos') entry.puntos += monto;
+    else entry.mixto += monto;
+    entry.total += monto;
+  }
+
+  res.json(Array.from(byWaiter.values()).sort((a, b) => b.total - a.total));
+}));
+
 api.post('/cash/open', ok(async (req, res) => {
   const { initialAmount, notes, employeeId } = req.body;
   let idUsuario: number | null = null;
