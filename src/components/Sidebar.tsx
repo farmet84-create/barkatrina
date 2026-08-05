@@ -134,7 +134,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpe
         id="app-sidebar"
         className={`w-64 bg-[#0F0F0F] border-r border-[#262626] text-neutral-300 flex flex-col justify-between flex-shrink-0
           fixed inset-y-0 left-0 z-40 overflow-y-auto transition-transform duration-300 ease-in-out
-          lg:static lg:translate-x-0 lg:z-auto lg:min-h-[calc(100vh-61px)]
+          lg:static lg:self-start lg:translate-x-0 lg:z-auto lg:h-[calc(100vh-61px)]
           ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
       {/* Navigation Links */}

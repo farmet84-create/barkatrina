@@ -135,8 +135,8 @@ export const InventoryModule: React.FC = () => {
             </button>
           </div>
 
-          <div className="bg-[#0F0F0F] border border-[#262626] rounded-2xl overflow-hidden shadow-xl">
-            <table className="w-full text-left text-xs text-neutral-300">
+          <div className="bg-[#0F0F0F] border border-[#262626] rounded-2xl shadow-xl overflow-x-auto">
+            <table className="w-full min-w-[640px] text-left text-xs text-neutral-300">
               <thead className="text-[11px] font-bold text-neutral-400 uppercase bg-[#161616] border-b border-[#262626]">
                 <tr>
                   <th className="py-3.5 px-4">Código</th>
@@ -177,8 +177,8 @@ export const InventoryModule: React.FC = () => {
 
       {/* SubTab 2: Kardex Movements */}
       {activeSubTab === 'movements' && (
-        <div className="bg-[#0F0F0F] border border-[#262626] rounded-2xl overflow-hidden shadow-xl">
-          <table className="w-full text-left text-xs text-neutral-300">
+        <div className="bg-[#0F0F0F] border border-[#262626] rounded-2xl shadow-xl overflow-x-auto">
+          <table className="w-full min-w-[640px] text-left text-xs text-neutral-300">
             <thead className="text-[11px] font-bold text-neutral-400 uppercase bg-[#161616] border-b border-[#262626]">
               <tr>
                 <th className="py-3.5 px-4">Tipo</th>
@@ -264,8 +264,8 @@ export const InventoryModule: React.FC = () => {
             </button>
           </div>
 
-          <div className="bg-[#0F0F0F] border border-[#262626] rounded-2xl overflow-hidden shadow-xl">
-            <table className="w-full text-left text-xs text-neutral-300">
+          <div className="bg-[#0F0F0F] border border-[#262626] rounded-2xl shadow-xl overflow-x-auto">
+            <table className="w-full min-w-[640px] text-left text-xs text-neutral-300">
               <thead className="text-[11px] font-bold text-neutral-400 uppercase bg-[#161616] border-b border-[#262626]">
                 <tr>
                   <th className="py-3.5 px-4">Categoría</th>
