@@ -769,6 +769,12 @@ api.post('/employees', ok(async (req, res) => {
      VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
     [documento, b.name, rolDb, b.phone || null, b.email || null, rolDb, b.active === false ? 'Inactivo' : 'Activo']
   );
+  const username = `${(b.name || 'user').split(' ')[0].toLowerCase().replace(/[^a-z0-9]/g, '')}.${rows[0].id_empleado}`;
+  await q(
+    `INSERT INTO usuarios (usuario, contrasena_hash, rol, id_empleado, estado)
+     VALUES ($1,$2,$3,$4,$5)`,
+    [username, '$2b$10$2HL7lD7WD4OzqCQDmhUE0eW7/SJh2.BtRtiaE.ag7CLu1aAOdC0Sq', rolDb, rows[0].id_empleado, 'Activo']
+  );
   res.json(mapEmployee(rows[0]));
 }));
 

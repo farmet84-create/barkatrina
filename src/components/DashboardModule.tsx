@@ -86,8 +86,8 @@ export const DashboardModule: React.FC<DashboardProps> = ({ setActiveTab }) => {
         <div id="dashboard-quick-actions" className="flex flex-wrap gap-2.5">
           <button
             id="quick-new-order-btn"
-            onClick={() => {
-              createOrder(undefined, 'llevar');
+            onClick={async () => {
+              await createOrder(undefined, 'llevar');
               setActiveTab('pos');
             }}
             className="flex items-center gap-2 bg-[#D4AF37] hover:bg-[#c29f2e] text-black font-extrabold px-4 py-2.5 rounded-xl text-xs uppercase tracking-wider transition-all shadow-lg shadow-[#D4AF37]/10 cursor-pointer"

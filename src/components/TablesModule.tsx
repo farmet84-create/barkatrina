@@ -43,12 +43,12 @@ export const TablesModule: React.FC<TablesModuleProps> = ({ setActiveTab }) => {
     return orders.find(o => o.id === table.activeOrderId);
   };
 
-  const handleOpenPOSForTable = (table: Table) => {
+  const handleOpenPOSForTable = async (table: Table) => {
     let order = getTableOrder(table);
     if (!order) {
-      order = createOrder(table.id, 'mesa');
+      order = await createOrder(table.id, 'mesa') || undefined;
     }
-    setActiveOrder(order);
+    if (order) setActiveOrder(order);
     setActiveTab('pos');
   };
 

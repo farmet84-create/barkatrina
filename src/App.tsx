@@ -5,6 +5,7 @@ import { Sidebar, ActiveTab } from './components/Sidebar';
 import { DashboardModule } from './components/DashboardModule';
 import { TablesModule } from './components/TablesModule';
 import { POSModule } from './components/POSModule';
+import { ProductsModule } from './components/ProductsModule';
 import { KitchenModule } from './components/KitchenModule';
 import { CashModule } from './components/CashModule';
 import { InventoryModule } from './components/InventoryModule';
@@ -34,6 +35,7 @@ export default function App() {
             {activeTab === 'dashboard' && <DashboardModule setActiveTab={setActiveTab} />}
             {activeTab === 'tables' && <TablesModule setActiveTab={setActiveTab} />}
             {activeTab === 'pos' && <POSModule />}
+            {activeTab === 'products' && <ProductsModule />}
             {activeTab === 'kitchen' && <KitchenModule />}
             {activeTab === 'cash' && <CashModule />}
             {activeTab === 'inventory' && <InventoryModule />}

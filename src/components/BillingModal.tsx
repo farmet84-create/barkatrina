@@ -49,21 +49,21 @@ export const BillingModal: React.FC<BillingModalProps> = ({ order, onClose }) =>
 
   const changeDue = Math.max(0, amountPaid - grandTotal);
 
-  const handleCreateCustomer = (e: React.FormEvent) => {
+  const handleCreateCustomer = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCustName) return;
-    const created = addCustomer({
+    const created = await addCustomer({
       name: newCustName,
       docNumber: newCustDoc || '12345678',
       email: '',
       phone: newCustPhone
     });
-    setSelectedCustomer(created);
+    if (created) setSelectedCustomer(created);
     setShowAddCustomer(false);
   };
 
-  const handleConfirmCheckout = () => {
-    const inv = checkoutOrder(
+  const handleConfirmCheckout = async () => {
+    const inv = await checkoutOrder(
       order.id,
       paymentMethod,
       amountPaid,

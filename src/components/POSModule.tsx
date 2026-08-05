@@ -51,24 +51,25 @@ export const POSModule: React.FC = () => {
   // Ensure an active order exists or create one
   const currentOrder = activeOrder || (orders.find(o => o.status === 'pendiente') || null);
 
-  const handleCreateNewOrder = (type: 'mesa' | 'llevar' = 'llevar') => {
-    const newOrd = createOrder(undefined, type);
-    setActiveOrder(newOrd);
+  const handleCreateNewOrder = async (type: 'mesa' | 'llevar' = 'llevar') => {
+    await createOrder(undefined, type);
   };
 
-  const handleAddItem = (prod: Product) => {
+  const handleAddItem = async (prod: Product) => {
     let orderToUse = currentOrder;
     if (!orderToUse) {
-      orderToUse = createOrder(undefined, 'llevar');
+      orderToUse = await createOrder(undefined, 'llevar');
     }
-    addItemToOrder(orderToUse.id, prod, 1);
+    if (orderToUse) {
+      await addItemToOrder(orderToUse.id, prod, 1);
+    }
   };
 
-  const handleSaveNote = () => {
+  const handleSaveNote = async () => {
     if (itemNoteModal && currentOrder) {
       const prod = products.find(p => p.id === itemNoteModal.productId);
       if (prod) {
-        addItemToOrder(currentOrder.id, prod, 1, customNoteText);
+        await addItemToOrder(currentOrder.id, prod, 1, customNoteText);
       }
       setItemNoteModal(null);
       setCustomNoteText('');

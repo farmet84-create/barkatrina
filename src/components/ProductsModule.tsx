@@ -23,7 +23,7 @@ export const ProductsModule: React.FC = () => {
   const [form, setForm] = useState<Omit<Product, 'id'>>({
     code: '',
     name: '',
-    categoryId: categories[0]?.id || 'cat-1',
+    categoryId: categories[0]?.id || '',
     price: 0,
     cost: 0,
     stock: 0,
@@ -45,7 +45,7 @@ export const ProductsModule: React.FC = () => {
     setForm({
       code: `PROD-${Math.floor(100 + Math.random() * 900)}`,
       name: '',
-      categoryId: categories[0]?.id || 'cat-1',
+      categoryId: categories[0]?.id || '',
       price: 15000,
       cost: 5000,
       stock: 50,
@@ -279,6 +279,41 @@ export const ProductsModule: React.FC = () => {
                   onChange={(e) => setForm({ ...form, minStock: Number(e.target.value) })}
                   className="w-full bg-[#161616] border border-[#262626] p-2.5 rounded-xl text-[#E5E5E5] font-mono"
                   required
+                />
+              </div>
+
+              <div>
+                <label className="text-neutral-400 block mb-1 font-semibold">Unidad de Medida</label>
+                <input
+                  type="text"
+                  value={form.unit}
+                  onChange={(e) => setForm({ ...form, unit: e.target.value })}
+                  placeholder="Unidad, Copas, Plato..."
+                  className="w-full bg-[#161616] border border-[#262626] p-2.5 rounded-xl text-[#E5E5E5]"
+                  required
+                />
+              </div>
+
+              <div className="col-span-2 flex items-center gap-2.5 bg-[#161616] border border-[#262626] p-2.5 rounded-xl">
+                <input
+                  id="product-form-kitchen"
+                  type="checkbox"
+                  checked={form.isKitchenItem}
+                  onChange={(e) => setForm({ ...form, isKitchenItem: e.target.checked })}
+                  className="w-4 h-4 accent-[#D4AF37]"
+                />
+                <label htmlFor="product-form-kitchen" className="text-neutral-300 font-semibold cursor-pointer">
+                  Requiere preparación en cocina (aparece en KDS)
+                </label>
+              </div>
+
+              <div className="col-span-2">
+                <label className="text-neutral-400 block mb-1 font-semibold">Descripción</label>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  rows={2}
+                  className="w-full bg-[#161616] border border-[#262626] p-2.5 rounded-xl text-[#E5E5E5] text-xs resize-none"
                 />
               </div>
 

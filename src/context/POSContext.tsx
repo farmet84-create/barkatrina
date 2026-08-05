@@ -4,7 +4,6 @@ import {
   Category,
   Table,
   Order,
-  OrderItem,
   Invoice,
   CashRegisterSession,
   CashMovement,
@@ -18,19 +17,7 @@ import {
   Role,
   PaymentMethod
 } from '../types/pos';
-import {
-  initialCategories,
-  initialProducts,
-  initialTables,
-  initialCustomers,
-  initialEmployees,
-  initialSuppliers,
-  initialExpenses,
-  initialActiveCashSession,
-  initialOrders,
-  initialInvoices,
-  initialSystemConfig
-} from '../data/initialData';
+import { api } from '../api/client';
 
 interface POSContextType {
   // Current user / role
@@ -57,8 +44,8 @@ interface POSContextType {
   orders: Order[];
   activeOrder: Order | null;
   setActiveOrder: (order: Order | null) => void;
-  createOrder: (tableId?: string, type?: 'mesa' | 'llevar' | 'domicilio', customerId?: string) => Order;
-  addItemToOrder: (orderId: string, product: Product, quantity: number, notes?: string) => void;
+  createOrder: (tableId?: string, type?: 'mesa' | 'llevar' | 'domicilio', customerId?: string) => Promise<Order | null>;
+  addItemToOrder: (orderId: string, product: Product, quantity: number, notes?: string) => Promise<void>;
   removeItemFromOrder: (orderId: string, itemId: string) => void;
   updateOrderItemQuantity: (orderId: string, itemId: string, delta: number) => void;
   updateOrderNotes: (orderId: string, notes: string) => void;
@@ -85,11 +72,11 @@ interface POSContextType {
     tipAmount: number,
     discountAmount: number,
     customer?: Customer
-  ) => Invoice | null;
+  ) => Promise<Invoice | null>;
 
   // Customers & Loyalty
   customers: Customer[];
-  addCustomer: (cust: Omit<Customer, 'id' | 'loyaltyPoints' | 'totalVisits' | 'totalSpent' | 'createdAt'>) => Customer;
+  addCustomer: (cust: Omit<Customer, 'id' | 'loyaltyPoints' | 'totalVisits' | 'totalSpent' | 'createdAt'>) => Promise<Customer | null>;
   updateCustomerPoints: (customerId: string, pointsDelta: number) => void;
 
   // Employees & Staff
@@ -116,98 +103,93 @@ interface POSContextType {
 
 const POSContext = createContext<POSContextType | undefined>(undefined);
 
+const rolePermissions = {
+  admin: { canManageProducts: true, canManageInventory: true, canManageUsers: true, canOpenCloseCash: true, canViewReports: true, canDiscountOrder: true, canTakeOrder: true },
+  cajero: { canManageProducts: false, canManageInventory: true, canManageUsers: false, canOpenCloseCash: true, canViewReports: true, canDiscountOrder: true, canTakeOrder: true },
+  mesero: { canManageProducts: false, canManageInventory: false, canManageUsers: false, canOpenCloseCash: false, canViewReports: false, canDiscountOrder: false, canTakeOrder: true },
+  cocinero: { canManageProducts: false, canManageInventory: false, canManageUsers: false, canOpenCloseCash: false, canViewReports: false, canDiscountOrder: false, canTakeOrder: false }
+};
+
 export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [config, setConfig] = useState<SystemConfig>(() => {
-    const saved = localStorage.getItem('pos_config');
-    return saved ? JSON.parse(saved) : initialSystemConfig;
-  });
+  const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [categories] = useState<Category[]>(initialCategories);
-
-  const [products, setProducts] = useState<Product[]>(() => {
-    const saved = localStorage.getItem('pos_products');
-    return saved ? JSON.parse(saved) : initialProducts;
-  });
-
-  const [tables, setTables] = useState<Table[]>(() => {
-    const saved = localStorage.getItem('pos_tables');
-    return saved ? JSON.parse(saved) : initialTables;
-  });
-
-  const [orders, setOrders] = useState<Order[]>(() => {
-    const saved = localStorage.getItem('pos_orders');
-    return saved ? JSON.parse(saved) : initialOrders;
-  });
-
+  const [config, setConfig] = useState<SystemConfig | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [tables, setTables] = useState<Table[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [activeOrder, setActiveOrder] = useState<Order | null>(null);
-
-  const [invoices, setInvoices] = useState<Invoice[]>(() => {
-    const saved = localStorage.getItem('pos_invoices');
-    return saved ? JSON.parse(saved) : initialInvoices;
-  });
-
-  const [cashSession, setCashSession] = useState<CashRegisterSession | null>(() => {
-    const saved = localStorage.getItem('pos_cash_session');
-    return saved ? JSON.parse(saved) : initialActiveCashSession;
-  });
-
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [cashSession, setCashSession] = useState<CashRegisterSession | null>(null);
   const [cashMovements, setCashMovements] = useState<CashMovement[]>([]);
-
-  const [customers, setCustomers] = useState<Customer[]>(() => {
-    const saved = localStorage.getItem('pos_customers');
-    return saved ? JSON.parse(saved) : initialCustomers;
-  });
-
-  const [employees, setEmployees] = useState<Employee[]>(() => {
-    const saved = localStorage.getItem('pos_employees');
-    return saved ? JSON.parse(saved) : initialEmployees;
-  });
-
-  const [currentUser, setCurrentUser] = useState<Employee>(employees[0]);
-
-  const [suppliers, setSuppliers] = useState<Supplier[]>(initialSuppliers);
-  const [expenses, setExpenses] = useState<Expense[]>(initialExpenses);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [currentUser, setCurrentUser] = useState<Employee | null>(null);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [expenses, setExpenses] = useState<Expense[]>([]);
   const [stockMovements, setStockMovements] = useState<StockMovement[]>([]);
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>([]);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
 
-  // Sync state to local storage
-  useEffect(() => { localStorage.setItem('pos_products', JSON.stringify(products)); }, [products]);
-  useEffect(() => { localStorage.setItem('pos_tables', JSON.stringify(tables)); }, [tables]);
-  useEffect(() => { localStorage.setItem('pos_orders', JSON.stringify(orders)); }, [orders]);
-  useEffect(() => { localStorage.setItem('pos_invoices', JSON.stringify(invoices)); }, [invoices]);
-  useEffect(() => { localStorage.setItem('pos_cash_session', JSON.stringify(cashSession)); }, [cashSession]);
-  useEffect(() => { localStorage.setItem('pos_customers', JSON.stringify(customers)); }, [customers]);
-  useEffect(() => { localStorage.setItem('pos_config', JSON.stringify(config)); }, [config]);
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await api.get('/bootstrap');
+        setConfig(data.config);
+        setCategories(data.categories);
+        setProducts(data.products);
+        setTables(data.tables);
+        setOrders(data.orders);
+        setCustomers(data.customers);
+        setEmployees(data.employees);
+        setCurrentUser(data.employees[0] || null);
+        setSuppliers(data.suppliers);
+        setExpenses(data.expenses);
+        setStockMovements(data.stockMovements);
+        setPurchaseOrders(data.purchaseOrders);
+        setInvoices(data.invoices);
+        setCashSession(data.cashSession);
+        setCashMovements(data.cashMovements);
+        setLoaded(true);
+      } catch (err: any) {
+        console.error('Error loading bootstrap data', err);
+        setLoadError(err.message || 'No se pudo conectar con el servidor');
+      }
+    })();
+  }, []);
 
-  const rolePermissions = {
-    admin: { canManageProducts: true, canManageInventory: true, canManageUsers: true, canOpenCloseCash: true, canViewReports: true, canDiscountOrder: true, canTakeOrder: true },
-    cajero: { canManageProducts: false, canManageInventory: true, canManageUsers: false, canOpenCloseCash: true, canViewReports: true, canDiscountOrder: true, canTakeOrder: true },
-    mesero: { canManageProducts: false, canManageInventory: false, canManageUsers: false, canOpenCloseCash: false, canViewReports: false, canDiscountOrder: false, canTakeOrder: true },
-    cocinero: { canManageProducts: false, canManageInventory: false, canManageUsers: false, canOpenCloseCash: false, canViewReports: false, canDiscountOrder: false, canTakeOrder: false }
+  const refreshTables = async () => setTables(await api.get('/tables'));
+  const refreshProducts = async () => setProducts(await api.get('/products'));
+  const refreshCustomers = async () => setCustomers(await api.get('/customers'));
+  const refreshCash = async () => {
+    const data = await api.get('/cash/current');
+    setCashSession(data.session);
+    setCashMovements(data.movements);
   };
 
   const updateConfig = (newConfig: Partial<SystemConfig>) => {
-    setConfig(prev => ({ ...prev, ...newConfig }));
+    setConfig(prev => (prev ? { ...prev, ...newConfig } : prev));
+    api.patch('/config', newConfig).catch(err => console.error('Error updating config', err));
   };
 
   // Product CRUD
   const addProduct = (prodData: Omit<Product, 'id'>) => {
-    const newProduct: Product = {
-      ...prodData,
-      id: `prod-${Date.now()}`
-    };
-    setProducts(prev => [newProduct, ...prev]);
+    api.post('/products', prodData)
+      .then(created => setProducts(prev => [created, ...prev]))
+      .catch(err => console.error('Error creating product', err));
   };
 
   const updateProduct = (id: string, updated: Partial<Product>) => {
     setProducts(prev => prev.map(p => p.id === id ? { ...p, ...updated } : p));
+    api.put(`/products/${id}`, updated).catch(err => console.error('Error updating product', err));
   };
 
   const deleteProduct = (id: string) => {
     setProducts(prev => prev.filter(p => p.id !== id));
+    api.del(`/products/${id}`).catch(err => console.error('Error deleting product', err));
   };
 
   // Table status
@@ -222,448 +204,206 @@ export const POSProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       return t;
     }));
+    api.patch(`/tables/${tableId}/status`, { status }).catch(err => console.error('Error updating table', err));
   };
 
-  // Calculations helper for orders
-  const calculateTotals = (items: OrderItem[], discount: number = 0) => {
-    const subtotal = items.reduce((acc, item) => acc + (item.unitPrice * item.quantity), 0);
-    const taxAmount = Math.round(subtotal * (config.taxRatePercent / 100));
-    const tipAmount = Math.round(subtotal * (config.defaultTipPercent / 100));
-    const total = Math.max(0, subtotal + taxAmount + tipAmount - discount);
-    return { subtotal, taxAmount, tipAmount, total };
-  };
-
-  // Order CRUD
-  const createOrder = (tableId?: string, type: 'mesa' | 'llevar' | 'domicilio' = 'mesa', customerId?: string) => {
-    const table = tables.find(t => t.id === tableId);
-    const customer = customers.find(c => c.id === customerId);
-
-    const newOrder: Order = {
-      id: `ord-${Date.now()}`,
-      code: `PED-${Math.floor(100 + Math.random() * 900)}`,
-      tableId,
-      tableName: table ? table.name : (type === 'llevar' ? 'Para Llevar' : 'Domicilio'),
-      customerId,
-      customerName: customer?.name,
-      waiterId: currentUser.id,
-      waiterName: currentUser.name,
-      items: [],
-      status: 'pendiente',
-      subtotal: 0,
-      taxAmount: 0,
-      tipAmount: 0,
-      discountAmount: 0,
-      total: 0,
-      createdAt: new Date().toISOString(),
-      type
-    };
-
-    setOrders(prev => [newOrder, ...prev]);
-
-    if (tableId) {
-      updateTableStatus(tableId, 'ocupada', newOrder.id);
+  // Orders
+  const createOrder = async (tableId?: string, type: 'mesa' | 'llevar' | 'domicilio' = 'mesa', customerId?: string): Promise<Order | null> => {
+    try {
+      const newOrder: Order = await api.post('/orders', { tableId, type, customerId, waiterEmployeeId: currentUser?.id });
+      setOrders(prev => [newOrder, ...prev]);
+      if (tableId) {
+        setTables(prev => prev.map(t => t.id === tableId ? { ...t, status: 'ocupada', activeOrderId: newOrder.id } : t));
+      }
+      setActiveOrder(newOrder);
+      return newOrder;
+    } catch (err) {
+      console.error('Error creating order', err);
+      return null;
     }
-
-    setActiveOrder(newOrder);
-    return newOrder;
   };
 
-  const addItemToOrder = (orderId: string, product: Product, quantity: number = 1, notes?: string) => {
-    setOrders(prev => prev.map(ord => {
-      if (ord.id !== orderId) return ord;
+  const applyOrderUpdate = (updated: Order) => {
+    setOrders(prev => prev.map(o => o.id === updated.id ? updated : o));
+    setActiveOrder(prev => (prev?.id === updated.id ? updated : prev));
+  };
 
-      const existingIndex = ord.items.findIndex(i => i.productId === product.id && i.notes === notes);
-      let updatedItems: OrderItem[];
-
-      if (existingIndex >= 0) {
-        updatedItems = ord.items.map((item, idx) => {
-          if (idx === existingIndex) {
-            return { ...item, quantity: item.quantity + quantity };
-          }
-          return item;
-        });
-      } else {
-        const newItem: OrderItem = {
-          id: `item-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-          productId: product.id,
-          productName: product.name,
-          unitPrice: product.price,
-          quantity,
-          notes,
-          isPrepared: !product.isKitchenItem // Auto prepared if not kitchen item
-        };
-        updatedItems = [...ord.items, newItem];
-      }
-
-      const totals = calculateTotals(updatedItems, ord.discountAmount);
-      const updatedOrder: Order = { ...ord, items: updatedItems, ...totals };
-
-      if (activeOrder?.id === orderId) {
-        setActiveOrder(updatedOrder);
-      }
-      return updatedOrder;
-    }));
+  const addItemToOrder = async (orderId: string, product: Product, quantity: number = 1, notes?: string) => {
+    try {
+      const updated: Order = await api.post(`/orders/${orderId}/items`, { productId: product.id, quantity, notes });
+      applyOrderUpdate(updated);
+    } catch (err) {
+      console.error('Error adding item to order', err);
+    }
   };
 
   const removeItemFromOrder = (orderId: string, itemId: string) => {
-    setOrders(prev => prev.map(ord => {
-      if (ord.id !== orderId) return ord;
-
-      const updatedItems = ord.items.filter(i => i.id !== itemId);
-      const totals = calculateTotals(updatedItems, ord.discountAmount);
-      const updatedOrder = { ...ord, items: updatedItems, ...totals };
-
-      if (activeOrder?.id === orderId) {
-        setActiveOrder(updatedOrder);
-      }
-      return updatedOrder;
-    }));
+    api.del(`/orders/${orderId}/items/${itemId}`)
+      .then(applyOrderUpdate)
+      .catch(err => console.error('Error removing item', err));
   };
 
   const updateOrderItemQuantity = (orderId: string, itemId: string, delta: number) => {
-    setOrders(prev => prev.map(ord => {
-      if (ord.id !== orderId) return ord;
-
-      const updatedItems = ord.items.map(item => {
-        if (item.id === itemId) {
-          const newQty = Math.max(1, item.quantity + delta);
-          return { ...item, quantity: newQty };
-        }
-        return item;
-      });
-
-      const totals = calculateTotals(updatedItems, ord.discountAmount);
-      const updatedOrder = { ...ord, items: updatedItems, ...totals };
-
-      if (activeOrder?.id === orderId) {
-        setActiveOrder(updatedOrder);
-      }
-      return updatedOrder;
-    }));
+    api.patch(`/orders/${orderId}/items/${itemId}/quantity`, { delta })
+      .then(applyOrderUpdate)
+      .catch(err => console.error('Error updating item quantity', err));
   };
 
   const updateOrderNotes = (orderId: string, notes: string) => {
-    setOrders(prev => prev.map(ord => ord.id === orderId ? { ...ord, notes } : ord));
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, notes } : o));
+    api.patch(`/orders/${orderId}/notes`, { notes }).catch(err => console.error('Error updating notes', err));
   };
 
   const sendOrderToKitchen = (orderId: string) => {
-    setOrders(prev => prev.map(ord => {
-      if (ord.id === orderId) {
-        const updated = { ...ord, status: 'en_cocina' as Order['status'] };
-        if (activeOrder?.id === orderId) setActiveOrder(updated);
-        return updated;
-      }
-      return ord;
-    }));
+    api.patch(`/orders/${orderId}/send-to-kitchen`)
+      .then(applyOrderUpdate)
+      .catch(err => console.error('Error sending order to kitchen', err));
   };
 
   const updateOrderStatus = (orderId: string, status: Order['status']) => {
-    setOrders(prev => prev.map(ord => {
-      if (ord.id === orderId) {
-        const updated = { ...ord, status };
-        if (activeOrder?.id === orderId) setActiveOrder(updated);
-
-        // Update table if order billed or cancelled
-        if (ord.tableId && (status === 'facturado' || status === 'cancelado')) {
-          updateTableStatus(ord.tableId, 'libre');
-        }
-        return updated;
-      }
-      return ord;
-    }));
+    api.patch(`/orders/${orderId}/status`, { status })
+      .then(updated => {
+        applyOrderUpdate(updated);
+        refreshTables().catch(() => {});
+      })
+      .catch(err => console.error('Error updating order status', err));
   };
 
   const cancelOrder = (orderId: string) => {
     updateOrderStatus(orderId, 'cancelado');
   };
 
-  // Kitchen Preparation
   const toggleItemPrepared = (orderId: string, itemId: string) => {
-    setOrders(prev => prev.map(ord => {
-      if (ord.id !== orderId) return ord;
-
-      const updatedItems = ord.items.map(item => {
-        if (item.id === itemId) {
-          return { ...item, isPrepared: !item.isPrepared };
-        }
-        return item;
-      });
-
-      const allPrepared = updatedItems.every(i => i.isPrepared);
-      const newStatus = allPrepared ? 'servido' : 'en_cocina';
-
-      return {
-        ...ord,
-        items: updatedItems,
-        status: newStatus
-      };
-    }));
+    api.patch(`/orders/${orderId}/items/${itemId}/toggle-prepared`)
+      .then(applyOrderUpdate)
+      .catch(err => console.error('Error toggling item prepared', err));
   };
 
   // Cash Register
   const openCashSession = (initialAmount: number, notes?: string) => {
-    const newSession: CashRegisterSession = {
-      id: `session-${Date.now()}`,
-      openedAt: new Date().toISOString(),
-      openedBy: currentUser.name,
-      initialAmount,
-      expectedCash: initialAmount,
-      totalCashSales: 0,
-      totalCardSales: 0,
-      totalTransferSales: 0,
-      totalPointsSales: 0,
-      totalExpenses: 0,
-      totalIncomes: 0,
-      status: 'abierta',
-      notes
-    };
-    setCashSession(newSession);
+    api.post('/cash/open', { initialAmount, notes, employeeId: currentUser?.id })
+      .then(session => setCashSession(session))
+      .catch(err => console.error('Error opening cash session', err));
   };
 
   const closeCashSession = (actualCash: number, notes?: string) => {
-    if (!cashSession) return;
-
-    const diff = actualCash - cashSession.expectedCash;
-    const closedSession: CashRegisterSession = {
-      ...cashSession,
-      closedAt: new Date().toISOString(),
-      closedBy: currentUser.name,
-      actualCash,
-      cashDifference: diff,
-      status: 'cerrada',
-      notes: notes ? `${cashSession.notes || ''} | Cierre: ${notes}` : cashSession.notes
-    };
-
-    setCashSession(closedSession);
+    api.post('/cash/close', { actualCash, notes, employeeId: currentUser?.id })
+      .then(session => setCashSession(session))
+      .catch(err => console.error('Error closing cash session', err));
   };
 
   const addCashMovement = (type: 'ingreso' | 'egreso', amount: number, reason: string) => {
-    if (!cashSession) return;
-
-    const movement: CashMovement = {
-      id: `mov-${Date.now()}`,
-      sessionId: cashSession.id,
-      type,
-      amount,
-      reason,
-      user: currentUser.name,
-      createdAt: new Date().toISOString()
-    };
-
-    setCashMovements(prev => [movement, ...prev]);
-
-    setCashSession(prev => {
-      if (!prev) return null;
-      const expectedCash = type === 'ingreso' ? prev.expectedCash + amount : prev.expectedCash - amount;
-      const totalIncomes = type === 'ingreso' ? prev.totalIncomes + amount : prev.totalIncomes;
-      const totalExpenses = type === 'egreso' ? prev.totalExpenses + amount : prev.totalExpenses;
-
-      return {
-        ...prev,
-        expectedCash,
-        totalIncomes,
-        totalExpenses
-      };
-    });
+    api.post('/cash/movement', { type, amount, reason, employeeId: currentUser?.id })
+      .then(() => refreshCash())
+      .catch(err => console.error('Error adding cash movement', err));
   };
 
   // Checkout & Invoicing
-  const checkoutOrder = (
+  const checkoutOrder = async (
     orderId: string,
     paymentMethod: PaymentMethod,
     amountPaid: number,
     tipAmount: number,
     discountAmount: number,
     customer?: Customer
-  ) => {
-    const order = orders.find(o => o.id === orderId);
-    if (!order) return null;
-
-    const subtotal = order.items.reduce((acc, i) => acc + (i.unitPrice * i.quantity), 0);
-    const taxAmount = Math.round(subtotal * (config.taxRatePercent / 100));
-    const grandTotal = Math.max(0, subtotal + taxAmount + tipAmount - discountAmount);
-    const changeDue = Math.max(0, amountPaid - grandTotal);
-
-    const invoice: Invoice = {
-      id: `inv-${Date.now()}`,
-      number: `FAC-${Math.floor(100000 + Math.random() * 900000)}`,
-      orderId: order.id,
-      customerId: customer?.id,
-      customerName: customer?.name || order.customerName || 'Cliente General',
-      customerDoc: customer?.docNumber,
-      waiterName: order.waiterName,
-      items: order.items,
-      subtotal,
-      taxAmount,
-      tipAmount,
-      discountAmount,
-      total: grandTotal,
-      paymentMethod,
-      amountPaid,
-      changeDue,
-      cashierId: currentUser.id,
-      cashierName: currentUser.name,
-      createdAt: new Date().toISOString()
-    };
-
-    // Save invoice
-    setInvoices(prev => [invoice, ...prev]);
-
-    // Update order status
-    updateOrderStatus(orderId, 'facturado');
-
-    // Deduct inventory stock for items
-    order.items.forEach(item => {
-      setProducts(prevProds => prevProds.map(p => {
-        if (p.id === item.productId) {
-          const newStock = Math.max(0, p.stock - item.quantity);
-          return { ...p, stock: newStock };
-        }
-        return p;
-      }));
-    });
-
-    // Update cash register totals
-    if (cashSession && cashSession.status === 'abierta') {
-      setCashSession(prev => {
-        if (!prev) return null;
-        let expectedCash = prev.expectedCash;
-        let totalCashSales = prev.totalCashSales;
-        let totalCardSales = prev.totalCardSales;
-        let totalTransferSales = prev.totalTransferSales;
-        let totalPointsSales = prev.totalPointsSales;
-
-        if (paymentMethod === 'efectivo') {
-          totalCashSales += grandTotal;
-          expectedCash += grandTotal;
-        } else if (paymentMethod === 'tarjeta') {
-          totalCardSales += grandTotal;
-        } else if (paymentMethod === 'transferencia') {
-          totalTransferSales += grandTotal;
-        } else if (paymentMethod === 'puntos') {
-          totalPointsSales += grandTotal;
-        }
-
-        return {
-          ...prev,
-          expectedCash,
-          totalCashSales,
-          totalCardSales,
-          totalTransferSales,
-          totalPointsSales
-        };
+  ): Promise<Invoice | null> => {
+    try {
+      const invoice: Invoice = await api.post('/checkout', {
+        orderId, paymentMethod, amountPaid, tipAmount, discountAmount, customerId: customer?.id
       });
+      setInvoices(prev => [invoice, ...prev]);
+      setOrders(prev => prev.filter(o => o.id !== orderId));
+      setActiveOrder(prev => (prev?.id === orderId ? null : prev));
+      await Promise.all([refreshTables(), refreshProducts(), refreshCash(), refreshCustomers()]);
+      return invoice;
+    } catch (err) {
+      console.error('Error checking out order', err);
+      return null;
     }
-
-    // Award loyalty points to customer if attached
-    if (customer) {
-      const pointsEarned = Math.floor((grandTotal / 1000) * config.pointsPerPurchase);
-      updateCustomerPoints(customer.id, pointsEarned);
-    }
-
-    return invoice;
   };
 
   // Customers & Loyalty
-  const addCustomer = (custData: Omit<Customer, 'id' | 'loyaltyPoints' | 'totalVisits' | 'totalSpent' | 'createdAt'>) => {
-    const newCust: Customer = {
-      ...custData,
-      id: `cust-${Date.now()}`,
-      loyaltyPoints: 0,
-      totalVisits: 0,
-      totalSpent: 0,
-      createdAt: new Date().toISOString().split('T')[0]
-    };
-    setCustomers(prev => [newCust, ...prev]);
-    return newCust;
+  const addCustomer = async (custData: Omit<Customer, 'id' | 'loyaltyPoints' | 'totalVisits' | 'totalSpent' | 'createdAt'>): Promise<Customer | null> => {
+    try {
+      const newCust: Customer = await api.post('/customers', custData);
+      setCustomers(prev => [newCust, ...prev]);
+      return newCust;
+    } catch (err) {
+      console.error('Error creating customer', err);
+      return null;
+    }
   };
 
   const updateCustomerPoints = (customerId: string, pointsDelta: number) => {
-    setCustomers(prev => prev.map(c => {
-      if (c.id === customerId) {
-        return {
-          ...c,
-          loyaltyPoints: Math.max(0, c.loyaltyPoints + pointsDelta),
-          totalVisits: c.totalVisits + 1
-        };
-      }
-      return c;
-    }));
+    api.patch(`/customers/${customerId}/points`, { pointsDelta })
+      .then(updated => setCustomers(prev => prev.map(c => c.id === customerId ? updated : c)))
+      .catch(err => console.error('Error updating customer points', err));
   };
 
   // Staff
   const addEmployee = (empData: Omit<Employee, 'id'>) => {
-    const newEmp: Employee = { ...empData, id: `emp-${Date.now()}` };
-    setEmployees(prev => [...prev, newEmp]);
+    api.post('/employees', empData)
+      .then(created => setEmployees(prev => [...prev, created]))
+      .catch(err => console.error('Error creating employee', err));
   };
 
   const updateEmployee = (id: string, empData: Partial<Employee>) => {
     setEmployees(prev => prev.map(e => e.id === id ? { ...e, ...empData } : e));
+    api.patch(`/employees/${id}`, empData).catch(err => console.error('Error updating employee', err));
   };
 
   // Inventory & Purchases
   const addExpense = (expData: Omit<Expense, 'id' | 'date' | 'registeredBy'>) => {
-    const newExp: Expense = {
-      ...expData,
-      id: `exp-${Date.now()}`,
-      date: new Date().toISOString().split('T')[0],
-      registeredBy: currentUser.name
-    };
-    setExpenses(prev => [newExp, ...prev]);
-
-    // If paid in cash, add to cash register
-    if (expData.paymentMethod === 'efectivo' && cashSession) {
-      addCashMovement('egreso', expData.amount, `Gasto: ${expData.description}`);
-    }
+    api.post('/expenses', { ...expData, employeeId: currentUser?.id })
+      .then(created => {
+        setExpenses(prev => [created, ...prev]);
+        if (expData.paymentMethod === 'efectivo') refreshCash().catch(() => {});
+      })
+      .catch(err => console.error('Error creating expense', err));
   };
 
   const addStockMovement = (productId: string, type: 'entrada' | 'salida' | 'ajuste', quantity: number, reason: string) => {
-    const prod = products.find(p => p.id === productId);
-    if (!prod) return;
-
-    const movement: StockMovement = {
-      id: `sm-${Date.now()}`,
-      productId,
-      productName: prod.name,
-      type,
-      quantity,
-      reason,
-      date: new Date().toISOString(),
-      registeredBy: currentUser.name
-    };
-
-    setStockMovements(prev => [movement, ...prev]);
-
-    setProducts(prev => prev.map(p => {
-      if (p.id === productId) {
-        let newStock = p.stock;
-        if (type === 'entrada') newStock += quantity;
-        else if (type === 'salida') newStock = Math.max(0, newStock - quantity);
-        else if (type === 'ajuste') newStock = quantity;
-        return { ...p, stock: newStock };
-      }
-      return p;
-    }));
+    api.post('/stock-movements', { productId, type, quantity, reason, employeeId: currentUser?.id })
+      .then(created => {
+        setStockMovements(prev => [created, ...prev]);
+        refreshProducts().catch(() => {});
+      })
+      .catch(err => console.error('Error creating stock movement', err));
   };
 
   const addSupplier = (supplierData: Omit<Supplier, 'id'>) => {
-    const newSup: Supplier = { ...supplierData, id: `sup-${Date.now()}` };
-    setSuppliers(prev => [...prev, newSup]);
+    api.post('/suppliers', supplierData)
+      .then(created => setSuppliers(prev => [...prev, created]))
+      .catch(err => console.error('Error creating supplier', err));
   };
 
   const addPurchaseOrder = (poData: Omit<PurchaseOrder, 'id' | 'date'>) => {
-    const newPO: PurchaseOrder = {
-      ...poData,
-      id: `po-${Date.now()}`,
-      date: new Date().toISOString().split('T')[0]
-    };
-    setPurchaseOrders(prev => [newPO, ...prev]);
-
-    // Update stock for purchased items
-    poData.items.forEach(item => {
-      addStockMovement(item.productId, 'entrada', item.quantity, `Compra Factura ${poData.invoiceNumber}`);
-    });
+    api.post('/purchases', { ...poData, employeeId: currentUser?.id })
+      .then(created => {
+        setPurchaseOrders(prev => [created, ...prev]);
+        refreshProducts().catch(() => {});
+      })
+      .catch(err => console.error('Error creating purchase order', err));
   };
+
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center p-6">
+        <div className="text-center space-y-2">
+          <p className="text-lg font-bold text-rose-400">No se pudo cargar el ERP</p>
+          <p className="text-sm text-neutral-400">{loadError}</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!loaded || !config || !currentUser) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex items-center justify-center">
+        <p className="text-sm text-neutral-400 tracking-wide">Cargando ERP POS…</p>
+      </div>
+    );
+  }
 
   return (
     <POSContext.Provider value={{

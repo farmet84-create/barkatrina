@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   Utensils,
   ShoppingBag,
+  Tag,
   ChefHat,
   Wallet,
   Package,
@@ -19,6 +20,7 @@ export type ActiveTab =
   | 'dashboard'
   | 'tables'
   | 'pos'
+  | 'products'
   | 'kitchen'
   | 'cash'
   | 'inventory'
@@ -60,6 +62,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, isOpe
       id: 'pos',
       label: 'Comandero / POS',
       icon: ShoppingBag,
+      badge: null
+    },
+    {
+      id: 'products',
+      label: 'Productos & Menú',
+      icon: Tag,
       badge: null
     },
     {
